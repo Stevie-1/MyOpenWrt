@@ -4,16 +4,18 @@
 # silently producing nothing.
 
 CC      ?= gcc
-CFLAGS  := -Wall -Wextra -O2 -std=c11 -pthread -Iinclude
+CFLAGS  := -Wall -Wextra -O2 -std=c11 -pthread -D_DEFAULT_SOURCE -Iinclude
 LDFLAGS := -lpcap -lpthread
 
-SRC_DIR := src
-INC_DIR := include
-BIN_DIR := bin
-TARGET  := $(BIN_DIR)/traffic_monitor
+SRC_DIR  := src
+INC_DIR  := include
+BIN_DIR  := bin
+# Per-toolchain object dir so host and cross builds can coexist.
+OBJ_DIR  := build/host
+TARGET   := $(BIN_DIR)/traffic_monitor
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
-OBJS := $(SRCS:.c=.o)
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 
 .PHONY: all clean check-sources
 
@@ -29,12 +31,12 @@ check-sources:
 $(TARGET): $(OBJS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-$(BIN_DIR):
-	mkdir -p $(BIN_DIR)
+$(BIN_DIR) $(OBJ_DIR):
+	mkdir -p $@
 
-%.o: %.c
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
 	rm -f $(SRC_DIR)/*.o
-	rm -rf $(BIN_DIR)

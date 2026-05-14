@@ -20,16 +20,18 @@ $(error OpenWrt SDK not found at $(SDK_DIR); see README.md)
 endif
 
 CC      := $(CROSS_TOOLCHAIN)/bin/x86_64-openwrt-linux-musl-gcc
-CFLAGS  := -Wall -Wextra -O2 -std=c11 -pthread -Iinclude \
+CFLAGS  := -Wall -Wextra -O2 -std=c11 -pthread -D_DEFAULT_SOURCE -Iinclude \
            -I$(TARGET_DIR)/usr/include
 LDFLAGS := -L$(TARGET_DIR)/usr/lib -lpcap -lpthread -static-libgcc
 
 SRC_DIR := src
 BIN_DIR := bin
+# Per-toolchain object dir so host and cross builds don't clobber each other.
+OBJ_DIR := build/openwrt
 TARGET  := $(BIN_DIR)/traffic_monitor.openwrt
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
-OBJS := $(SRCS:.c=.o)
+OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 
 .PHONY: all clean check-sources
 
@@ -45,12 +47,12 @@ check-sources:
 $(TARGET): $(OBJS) | $(BIN_DIR)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-$(BIN_DIR):
-	mkdir -p $(BIN_DIR)
+$(BIN_DIR) $(OBJ_DIR):
+	mkdir -p $@
 
-%.o: %.c
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
 	rm -f $(SRC_DIR)/*.o
-	rm -rf $(BIN_DIR)

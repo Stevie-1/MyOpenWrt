@@ -44,10 +44,15 @@ ComputerNetworkExp/
 ├── scripts/
 │   ├── deploy_to_openwrt.sh
 │   └── package_submission.sh
+├── release/                  # OpenWrt 交叉编译产物（给角色 C 部署用）
+│   ├── traffic_monitor       # x86_64 musl ELF，已 strip
+│   ├── traffic_monitor.sha256
+│   └── README.md
 └── test/
     ├── test_health.py
     ├── test_traffic_api.py
     ├── test_firewall_api.py
+    ├── test_traffic_json_schema.py
     └── traffic_generator.py
 ```
 
@@ -84,6 +89,17 @@ pnpm dev
 
 ```bash
 pytest test/ -v
+```
+
+### 部署 traffic_monitor 到 OpenWrt
+
+`release/traffic_monitor` 已是 OpenWrt 24.10 x86_64 musl 的可执行文件（依赖
+仅 `libc.so`，libpcap 已静态打包），由 Role C 拷入 VM 即用。详细步骤见
+[release/README.md](release/README.md)。重新构建：
+
+```bash
+cd traffic-monitor
+make -f Makefile.openwrt clean && make -f Makefile.openwrt
 ```
 
 ## 团队分工与协作
