@@ -1,0 +1,57 @@
+{
+  "ts": 1736838400123,
+  "items": [
+    {
+      "srcIp": "192.168.1.10",
+      "dstIp": "8.8.8.8",
+      "srcPort": 54321,
+      "dstPort": 443,
+      "proto": "tcp",
+      "rxBytes": 1234567,
+      "txBytes": 89012,
+      "peak": 524288,
+      "avg2s": 102400,
+      "avg10s": 65536,
+      "avg40s": 32768
+    },
+    {
+      "srcIp": "192.168.1.10",
+      "dstIp": "1.1.1.1",
+      "srcPort": 51234,
+      "dstPort": 53,
+      "proto": "udp",
+      "rxBytes": 4096,
+      "txBytes": 2048,
+      "peak": 8192,
+      "avg2s": 512,
+      "avg10s": 256,
+      "avg40s": 128
+    },
+    {
+      "srcIp": "192.168.1.10",
+      "dstIp": "192.168.1.1",
+      "srcPort": 0,
+      "dstPort": 0,
+      "proto": "icmp",
+      "rxBytes": 168,
+      "txBytes": 168,
+      "peak": 84,
+      "avg2s": 42,
+      "avg10s": 16,
+      "avg40s": 4
+    },
+    {
+      "srcIp": "192.168.1.10",
+      "dstIp": "140.82.114.4",
+      "srcPort": 55432,
+      "dstPort": 22,
+      "proto": "tcp",
+      "rxBytes": 78901,
+      "txBytes": 12345,
+      "peak": 16384,
+      "avg2s": 4096,
+      "avg10s": 2048,
+      "avg40s": 1024
+    }
+  ]
+}

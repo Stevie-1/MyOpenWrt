@@ -1,0 +1,107 @@
+"""Strict whitelist validators for firewall payloads.
+
+Security rationale: every user-provided value that ends up as an argv item
+to a shell script MUST pass through here first. Failing closed (raising
+ValidationError) is far safer than passing through unknown input.
+"""
+
+from __future__ import annotations
+
+import ipaddress
+import re
+from dataclasses import dataclass
+
+ALLOWED_PROTO = {"tcp", "udp", "icmp"}
+ALLOWED_ACTION = {"accept", "reject", "drop"}
+
+_INJECTION_PATTERN = re.compile(r"[;&|`$\n\r\\<>\"']")
+
+_REQUIRED_FIELDS = ("proto", "src", "dst", "port", "action")
+
+
+class ValidationError(ValueError):
+    def __init__(self, message: str, field: str | None = None):
+        super().__init__(message)
+        self.message = message
+        self.field = field
+
+
+@dataclass(frozen=True)
+class FirewallPayload:
+    proto: str
+    src: str
+    dst: str
+    port: int
+    action: str
+
+
+def _ensure_no_injection(value: str, field: str) -> None:
+    if _INJECTION_PATTERN.search(value):
+        raise ValidationError(
+            f"illegal characters in {field}: shell metacharacters are not allowed",
+            field=field,
+        )
+
+
+def _validate_address(value: str, field: str) -> str:
+    _ensure_no_injection(value, field)
+    if value == "any":
+        return value
+    try:
+        if "/" in value:
+            ipaddress.ip_network(value, strict=False)
+        else:
+            ipaddress.ip_address(value)
+    except ValueError as exc:
+        raise ValidationError(f"invalid {field}: {value!r}", field=field) from exc
+    return value
+
+
+def validate_firewall_payload(data: object) -> FirewallPayload:
+    if not isinstance(data, dict):
+        raise ValidationError("request body must be a JSON object")
+
+    for required in _REQUIRED_FIELDS:
+        if required not in data:
+            raise ValidationError(f"missing field: {required}", field=required)
+
+    proto_raw = data["proto"]
+    if not isinstance(proto_raw, str):
+        raise ValidationError("proto must be a string", field="proto")
+    proto = proto_raw.lower().strip()
+    _ensure_no_injection(proto, "proto")
+    if proto not in ALLOWED_PROTO:
+        raise ValidationError(
+            f"invalid proto: {proto_raw!r} not in {sorted(ALLOWED_PROTO)}",
+            field="proto",
+        )
+
+    action_raw = data["action"]
+    if not isinstance(action_raw, str):
+        raise ValidationError("action must be a string", field="action")
+    action = action_raw.lower().strip()
+    _ensure_no_injection(action, "action")
+    if action not in ALLOWED_ACTION:
+        raise ValidationError(
+            f"invalid action: {action_raw!r} not in {sorted(ALLOWED_ACTION)}",
+            field="action",
+        )
+
+    src_raw = data["src"]
+    dst_raw = data["dst"]
+    if not isinstance(src_raw, str) or not isinstance(dst_raw, str):
+        raise ValidationError("src and dst must be strings", field="src/dst")
+    src = _validate_address(src_raw.strip(), "src")
+    dst = _validate_address(dst_raw.strip(), "dst")
+
+    port_raw = data["port"]
+    if isinstance(port_raw, bool) or not isinstance(port_raw, (int, str)):
+        raise ValidationError("port must be an integer", field="port")
+    try:
+        port = int(port_raw)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError(f"port must be an integer, got {port_raw!r}", field="port") from exc
+    if not (1 <= port <= 65535):
+        raise ValidationError(f"port out of range [1, 65535]: {port}", field="port")
+
+    return FirewallPayload(proto=proto, src=src, dst=dst, port=port, action=action)

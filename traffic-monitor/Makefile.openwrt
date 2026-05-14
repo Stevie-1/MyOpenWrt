@@ -1,0 +1,56 @@
+# traffic-monitor cross-compile Makefile for OpenWrt 24.10 x86_64 (musl).
+#
+# Usage:
+#   export SDK_DIR=~/openwrt-sdk          # path to extracted OpenWrt SDK
+#   make -f Makefile.openwrt
+#
+# Output: bin/traffic_monitor.openwrt (musl-linked, deployable to OpenWrt)
+#
+# Phase 2 will refine this once we know the exact SDK layout. For now we
+# expose the toolchain variables and depend on whatever .c files exist.
+
+SDK_DIR ?= $(HOME)/openwrt-sdk
+
+# Locate the cross gcc inside the SDK staging dir
+CROSS_TOOLCHAIN := $(firstword $(wildcard $(SDK_DIR)/staging_dir/toolchain-*))
+TARGET_DIR      := $(firstword $(wildcard $(SDK_DIR)/staging_dir/target-*))
+
+ifeq ($(strip $(CROSS_TOOLCHAIN)),)
+$(error OpenWrt SDK not found at $(SDK_DIR); see README.md)
+endif
+
+CC      := $(CROSS_TOOLCHAIN)/bin/x86_64-openwrt-linux-musl-gcc
+CFLAGS  := -Wall -Wextra -O2 -std=c11 -pthread -Iinclude \
+           -I$(TARGET_DIR)/usr/include
+LDFLAGS := -L$(TARGET_DIR)/usr/lib -lpcap -lpthread -static-libgcc
+
+SRC_DIR := src
+BIN_DIR := bin
+TARGET  := $(BIN_DIR)/traffic_monitor.openwrt
+
+SRCS := $(wildcard $(SRC_DIR)/*.c)
+OBJS := $(SRCS:.c=.o)
+
+.PHONY: all clean check-sources
+
+all: check-sources $(TARGET)
+
+check-sources:
+	@if [ -z "$(SRCS)" ]; then \
+		echo "[ERROR] no .c files under $(SRC_DIR)/ yet."; \
+		echo "        Phase 2 implementation pending."; \
+		exit 1; \
+	fi
+
+$(TARGET): $(OBJS) | $(BIN_DIR)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+clean:
+	rm -f $(SRC_DIR)/*.o
+	rm -rf $(BIN_DIR)

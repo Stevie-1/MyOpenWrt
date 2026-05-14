@@ -1,0 +1,4 @@
+# Phase 2 will populate this directory with:
+#   capture.h  - capture thread interface
+#   stats.h    - stats data structures (5-tuple key, ring buffer, hash table)
+#   output.h   - JSON writer interface

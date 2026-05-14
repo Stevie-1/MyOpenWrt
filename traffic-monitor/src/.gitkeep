@@ -1,0 +1,5 @@
+# Phase 2 will populate this directory with:
+#   main.c     - CLI argv parsing & thread orchestration
+#   capture.c  - libpcap loop (pcap_open_live, pcap_compile, pcap_setfilter, pcap_loop)
+#   stats.c    - 5-tuple hash table + ring-buffer sliding windows (2s/10s/40s)
+#   output.c   - JSON serialization with atomic tmp+rename write

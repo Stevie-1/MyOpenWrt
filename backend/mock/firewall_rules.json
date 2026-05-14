@@ -1,0 +1,20 @@
+{
+  "rules": [
+    {
+      "id": "rule-1",
+      "proto": "tcp",
+      "src": "0.0.0.0/0",
+      "dst": "192.168.1.1",
+      "port": 22,
+      "action": "accept"
+    },
+    {
+      "id": "rule-2",
+      "proto": "tcp",
+      "src": "192.168.1.0/24",
+      "dst": "any",
+      "port": 80,
+      "action": "drop"
+    }
+  ]
+}
