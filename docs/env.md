@@ -25,9 +25,9 @@
 
 ## 角色 C：VMware / OpenWrt VM
 
-> 角色 C 填写以下信息。所有 IP 都用 NAT 模式下与 VMnet8 同网段的静态 IP。
+> 由角色 C（Stevie-1）填写。所有 IP 都用 NAT 模式下与 VMnet8 同网段的静态 IP。
 
-- VMware Workstation 版本：`<待填，建议 17.x>`
+- VMware Workstation 版本：`17.5.0`
 - OpenWrt 版本：`24.10.0 x86_64`
 - VM 内存：`<待填，建议 512MB-1GB>`
 - VM CPU：`<待填，1-2 核足够>`
@@ -37,20 +37,21 @@
 | 项 | 值 |
 |---|---|
 | 网卡模式 | NAT（对应 VMnet8） |
-| VMnet8 网段 | `<待填，例如 192.168.x.0/24>` |
-| OpenWrt 静态 IP | `<待填>` |
+| VMnet8 网段 | `192.168.122.0/24` |
+| OpenWrt 静态 IP | `192.168.122.100` |
 | 子网掩码 | `255.255.255.0` |
-| 网关 | `<待填，通常是 VMnet8 的 .2>` |
+| 网关 | `192.168.122.2` |
 | DNS | `<待填，例如 8.8.8.8 / 114.114.114.114>` |
-| 主网卡名 | `<跑 ip addr 后填写，通常是 br-lan 或 eth0>` |
+| 主网卡名 | `br-lan` |
+| LAN 网卡（抓包用） | `eth0` |
 
 ### 访问方式
 
 | 项 | 值 |
 |---|---|
-| SSH | `ssh root@<OpenWrt IP>` |
-| LuCI 管理界面 | `http://<OpenWrt IP>` |
-| Samba 共享 | `\\<OpenWrt IP>\p0` → `/mnt/p0` |
+| SSH | `ssh root@192.168.122.100` |
+| LuCI 管理界面 | `http://192.168.122.100` |
+| Samba 共享 | `\\192.168.122.100\p0` → `/mnt/p0`（路径待 Stevie-1 在 LuCI 配置后确认） |
 
 ### 已装软件包
 
