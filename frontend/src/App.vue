@@ -5,14 +5,39 @@
         <h1>OpenWrt 网络管理工具</h1>
       </el-header>
       <el-main>
-        <router-view />
+        <el-tabs
+          v-model="activeTab"
+          class="main-tabs"
+          @tab-change="onTabChange"
+        >
+          <el-tab-pane label="流量监控" name="traffic" />
+          <el-tab-pane label="防火墙规则" name="firewall" />
+        </el-tabs>
+        <TrafficMonitor v-show="activeTab === 'traffic'" />
+        <FirewallConfig v-show="activeTab === 'firewall'" />
       </el-main>
     </el-container>
   </div>
 </template>
 
 <script setup>
-// App 根组件
+import { ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import TrafficMonitor from './views/TrafficMonitor.vue'
+import FirewallConfig from './views/FirewallConfig.vue'
+
+const route = useRoute()
+const router = useRouter()
+
+const activeTab = ref(route.path === '/firewall' ? 'firewall' : 'traffic')
+
+function onTabChange(name) {
+  router.push(name === 'firewall' ? '/firewall' : '/traffic')
+}
+
+watch(() => route.path, (path) => {
+  activeTab.value = path === '/firewall' ? 'firewall' : 'traffic'
+})
 </script>
 
 <style>
@@ -28,10 +53,15 @@
   color: white;
   display: flex;
   align-items: center;
+  padding: 0 20px;
 }
 
 .el-header h1 {
   margin: 0;
   font-size: 24px;
+}
+
+.main-tabs {
+  margin-bottom: 20px;
 }
 </style>
