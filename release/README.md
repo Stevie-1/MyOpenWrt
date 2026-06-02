@@ -22,16 +22,16 @@
 # 在 Windows 资源管理器：把 release/traffic_monitor 拖入 \\OpenWrt-IP\p0\
 
 # 在 OpenWrt SSH：
-cp /mnt/p0/traffic_monitor /usr/local/bin/traffic_monitor
-chmod +x /usr/local/bin/traffic_monitor
+cp /mnt/p0/traffic_monitor /usr/bin/traffic_monitor
+chmod +x /usr/bin/traffic_monitor
 
 # 烟测：
-/usr/local/bin/traffic_monitor --version            # 期望: 0.1.0
-/usr/local/bin/traffic_monitor --self-test -o /tmp/traffic.json
+/usr/bin/traffic_monitor --version            # 期望: 0.1.0
+/usr/bin/traffic_monitor --self-test -o /tmp/traffic.json
 cat /tmp/traffic.json | head -20                    # 期望: 合法 JSON, items 3 条
 
 # 正式运行：抓 br-lan，写 /tmp/traffic.json，每秒一次
-/usr/local/bin/traffic_monitor -i br-lan -t 1000 -o /tmp/traffic.json &
+/usr/bin/traffic_monitor -i eth0 -t 1000 -o /tmp/traffic.json &
 ```
 
 ## 校验 SHA256
@@ -41,7 +41,7 @@ cat /tmp/traffic.json | head -20                    # 期望: 合法 JSON, items
 sha256sum release/traffic_monitor
 
 # OpenWrt 上对账：
-sha256sum /usr/local/bin/traffic_monitor
+sha256sum /usr/bin/traffic_monitor
 ```
 
 两边必须一致；不一致说明传输过程中文件被改了（编码、换行被改写等）。

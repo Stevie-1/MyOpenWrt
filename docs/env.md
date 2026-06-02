@@ -51,14 +51,14 @@
 |---|---|
 | SSH | `ssh root@192.168.122.100` |
 | LuCI 管理界面 | `http://192.168.122.100` |
-| Samba 共享 | `\\192.168.122.100\p0` → `/mnt/p0`（路径待 Stevie-1 在 LuCI 配置后确认） |
+| Samba 共享 | `\\192.168.122.100\p0` → `/mnt/p0` |
 
 ### 已装软件包
 
 - `luci-app-samba4`（Samba 服务）
 - `libpcap1`（流量监控运行时依赖）
 - `python3-light` + `pip flask flask-cors`（Flask 后端运行时）
-- 其他：`<待补充>`
+- `opkg install bash openssh-sftp-server libpcap iperf3 curl tcpdump-mini`
 
 ## 端口与路径约定
 

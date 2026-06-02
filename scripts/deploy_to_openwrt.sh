@@ -32,17 +32,17 @@ SCP_OPTS=(-P "${OPENWRT_PORT}" -o BatchMode=yes -o StrictHostKeyChecking=accept-
 
 echo "==> target: ${SSH_TARGET}:${OPENWRT_PORT}"
 
-echo "==> firewall scripts -> /usr/local/bin/"
-scp "${SCP_OPTS[@]}" "${REPO_ROOT}"/firewall-scripts/*.sh "${SSH_TARGET}":/usr/local/bin/
+echo "==> firewall scripts -> /usr/bin/"
+scp "${SCP_OPTS[@]}" "${REPO_ROOT}"/firewall-scripts/*.sh "${SSH_TARGET}":/usr/bin/
 ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" \
-    "chmod +x /usr/local/bin/*.sh && sed -i 's/\r\$//' /usr/local/bin/*.sh"
+    "chmod +x /usr/bin/*.sh && sed -i 's/\r\$//' /usr/bin/*.sh"
 
 if [ -f "${REPO_ROOT}/traffic-monitor/bin/traffic_monitor.openwrt" ]; then
-    echo "==> traffic monitor binary -> /usr/local/bin/traffic_monitor"
+    echo "==> traffic monitor binary -> /usr/bin/traffic_monitor"
     scp "${SCP_OPTS[@]}" \
         "${REPO_ROOT}/traffic-monitor/bin/traffic_monitor.openwrt" \
-        "${SSH_TARGET}":/usr/local/bin/traffic_monitor
-    ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" "chmod +x /usr/local/bin/traffic_monitor"
+        "${SSH_TARGET}":/usr/bin/traffic_monitor
+    ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" "chmod +x /usr/bin/traffic_monitor"
 else
     echo "(skip) traffic-monitor not cross-compiled yet; run 'make -f Makefile.openwrt' in traffic-monitor/ first"
 fi

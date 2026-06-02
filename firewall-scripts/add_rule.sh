@@ -43,12 +43,15 @@ next_seq() {
 SEQ="$(next_seq)"
 RULE_ID="webfw-$SEQ"
 
-# uci target option is upper-case (ACCEPT / REJECT / DROP).
-TARGET="$(echo "$ACTION" | tr '[:lower:]' '[:upper:]')"
+# uci target option is upper-case (ACCEPT / REJECT / DROP). (Checked wrong by Stevie-1)
+# TARGET="$(echo "$ACTION" | tr '[:lower:]' '[:upper:]')" 
+
+# Remove any trailing newline or carriage return characters from ACTION before converting to uppercase, to ensure the TARGET value is clean and valid for uci.
+TARGET="$(echo "$ACTION" | tr -d '\r\n' | tr 'a-z' 'A-Z')"
 
 SEC="$(uci add firewall rule)"
 uci set firewall."$SEC".name="$RULE_ID"
-uci set firewall."$SEC".src='*'
+uci set firewall."$SEC".src='lan' #  (Zone: lan) It's Safer.
 uci set firewall."$SEC".family='ipv4'
 uci set firewall."$SEC".proto="$PROTO"
 uci set firewall."$SEC".target="$TARGET"

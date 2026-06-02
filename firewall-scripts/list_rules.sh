@@ -37,7 +37,8 @@ for sec in $(sections); do
     id="$(get "$sec" name "")"
     proto="$(get "$sec" proto other)"
     target="$(get "$sec" target DROP)"
-    action="$(echo "$target" | tr '[:upper:]' '[:lower:]')"
+    #action="$(echo "$target" | tr '[:upper:]' '[:lower:]')" Checked wrong by Stevie-1
+    action=$(echo "$target" | tr -d '\r\n' | tr 'A-Z' 'a-z') 
     src="$(get "$sec" src_ip any)"
     dst="$(get "$sec" dest_ip any)"
     port="$(get "$sec" dest_port 0)"
