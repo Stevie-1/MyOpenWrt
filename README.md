@@ -112,6 +112,8 @@ make -f Makefile.openwrt clean && make -f Makefile.openwrt
 
 API 契约见 [docs/api.md](docs/api.md)，OpenWrt VM 环境信息见 [docs/env.md](docs/env.md)。
 
+**联调与上线**：A 的后端/C 程序/防火墙脚本交付给 B/C 的对接说明（含上线步骤、各自自测清单、字段对照、联调顺序）见 [docs/integration-handoff.md](docs/integration-handoff.md)。
+
 ## 贡献规范
 
 - **分支策略**：保护 `main`，所有改动走 `feat/*`、`fix/*`、`docs/*`、`chore/*` 分支 + PR
