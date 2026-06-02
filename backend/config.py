@@ -35,6 +35,11 @@ class Config:
     firewall_scripts_dir: str = field(
         default_factory=lambda: os.environ.get("FIREWALL_SCRIPTS_DIR", "/usr/local/bin")
     )
+    # Subprocess wall-clock budget for a single firewall script. `fw4 reload`
+    # can take a second or two on a busy router, so the default leaves headroom.
+    firewall_timeout: float = field(
+        default_factory=lambda: float(os.environ.get("FIREWALL_TIMEOUT", "8"))
+    )
 
     flask_host: str = field(default_factory=lambda: os.environ.get("FLASK_HOST", "0.0.0.0"))
     flask_port: int = field(default_factory=lambda: int(os.environ.get("FLASK_PORT", "5000")))

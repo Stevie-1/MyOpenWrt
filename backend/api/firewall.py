@@ -1,16 +1,25 @@
 """Firewall configuration API.
 
-Phase 1: returns mock results from an in-memory store, with full strict
-validation already wired in via _validators.py. Phase 3 will replace the
-mock branches with real subprocess.run() calls to firewall-scripts/*.sh
-WITHOUT changing the validation surface or the response shape.
+Two execution modes, selected by config.mock_mode:
+
+- Mock (MOCK_MODE=true, default): an in-memory store backs add/list/delete/
+  clear so the Vue frontend can be built without OpenWrt.
+- Real (MOCK_MODE=false): each endpoint shells out to firewall-scripts/*.sh
+  via subprocess.run([...], shell=False). The scripts manage uci/fw4 rules on
+  OpenWrt. stdout/stderr/exit-code are surfaced verbatim (guide section 3.3).
+
+Both modes share the same strict validation (_validators.py) and the same
+response shape (docs/api.md), so the frontend is agnostic to the mode.
 
 The route prefix /api/firewall is added by app.py.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import os
+import subprocess
 import threading
 import time
 from dataclasses import asdict
@@ -19,11 +28,89 @@ from typing import Any
 from flask import Blueprint, jsonify, request
 
 from config import config
-from ._validators import ValidationError, validate_firewall_payload
+from ._validators import (
+    ValidationError,
+    validate_firewall_payload,
+    validate_rule_id,
+)
 
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("firewall", __name__)
+
+
+class ScriptError(RuntimeError):
+    """Raised when a firewall script cannot be executed at all (missing,
+    not executable, or timed out). Distinct from a script that runs and
+    returns a non-zero exit code."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.message = message
+
+
+def _run_script(name: str, args: list[str]) -> tuple[int, str, str]:
+    """Execute a firewall script with argv passing (never shell=True).
+
+    Returns (returncode, stdout, stderr). Raises ScriptError if the script
+    is missing/not executable or exceeds the timeout budget.
+    """
+    path = os.path.join(config.firewall_scripts_dir, name)
+    try:
+        proc = subprocess.run(
+            [path, *args],
+            shell=False,
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=config.firewall_timeout,
+        )
+    except FileNotFoundError as exc:
+        raise ScriptError(f"firewall script not found: {path}") from exc
+    except PermissionError as exc:
+        raise ScriptError(f"firewall script not executable: {path}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise ScriptError(f"firewall script timeout: {name}") from exc
+    return proc.returncode, proc.stdout, proc.stderr
+
+
+def _script_error_response(exc: ScriptError):
+    return (
+        jsonify(
+            {
+                "ok": False,
+                "message": exc.message,
+                "stdout": "",
+                "stderr": "",
+                "code": -1,
+            }
+        ),
+        500,
+    )
+
+
+def _script_failed_response(stdout: str, stderr: str, code: int):
+    return (
+        jsonify(
+            {
+                "ok": False,
+                "message": "firewall script failed",
+                "stdout": stdout,
+                "stderr": stderr,
+                "code": code,
+            }
+        ),
+        500,
+    )
+
+
+def _parse_rule_id(stdout: str) -> str | None:
+    """add_rule.sh prints a `ruleId=<id>` line on success."""
+    for line in stdout.splitlines():
+        line = line.strip()
+        if line.startswith("ruleId="):
+            return line.split("=", 1)[1].strip()
+    return None
 
 # In-memory mock store. Phase 3 will swap this for real fw4 rule listing.
 _store_lock = threading.Lock()
@@ -77,8 +164,15 @@ def _validation_response(exc: ValidationError):
 
 @bp.get("/rules")
 def list_rules():
-    with _store_lock:
-        rules = list(_mock_rules) if config.mock_mode else _list_real_rules()
+    if config.mock_mode:
+        with _store_lock:
+            rules = list(_mock_rules)
+        return jsonify({"ok": True, "ts": int(time.time() * 1000), "rules": rules})
+
+    try:
+        rules = _list_real_rules()
+    except ScriptError as exc:
+        return _script_error_response(exc)
     return jsonify({"ok": True, "ts": int(time.time() * 1000), "rules": rules})
 
 
@@ -107,8 +201,27 @@ def add_rule():
             )
         )
 
-    # Phase 3 will replace this with subprocess.run([...add_rule.sh, ...])
-    return _not_implemented("add_rule")
+    try:
+        code, stdout, stderr = _run_script(
+            "add_rule.sh",
+            [payload.proto, payload.src, payload.dst, str(payload.port), payload.action],
+        )
+    except ScriptError as exc:
+        return _script_error_response(exc)
+
+    if code != 0:
+        return _script_failed_response(stdout, stderr, code)
+
+    return jsonify(
+        _ts_payload(
+            {
+                "ruleId": _parse_rule_id(stdout),
+                "stdout": stdout,
+                "stderr": stderr,
+                "code": code,
+            }
+        )
+    )
 
 
 @bp.delete("/rules/<rule_id>")
@@ -132,7 +245,26 @@ def delete_rule(rule_id: str):
             404,
         )
 
-    return _not_implemented("delete_rule")
+    try:
+        rule_id = validate_rule_id(rule_id)
+    except ValidationError as exc:
+        return _validation_response(exc)
+
+    try:
+        code, stdout, stderr = _run_script("del_rule.sh", [rule_id])
+    except ScriptError as exc:
+        return _script_error_response(exc)
+
+    # del_rule.sh contract: 0=deleted, 1=not found, other=failure.
+    if code == 1:
+        return (
+            jsonify({"ok": False, "message": f"rule not found: {rule_id}"}),
+            404,
+        )
+    if code != 0:
+        return _script_failed_response(stdout, stderr, code)
+
+    return jsonify(_ts_payload({"stdout": stdout, "stderr": stderr, "code": code}))
 
 
 @bp.post("/clear")
@@ -151,25 +283,33 @@ def clear_rules():
             )
         )
 
-    return _not_implemented("clear_rules")
+    try:
+        code, stdout, stderr = _run_script("clear_rules.sh", [])
+    except ScriptError as exc:
+        return _script_error_response(exc)
+
+    if code != 0:
+        return _script_failed_response(stdout, stderr, code)
+
+    return jsonify(_ts_payload({"stdout": stdout, "stderr": stderr, "code": code}))
 
 
 def _list_real_rules() -> list[dict[str, Any]]:
-    # Phase 3 will implement actual rule listing via list_rules.sh
-    logger.warning("real-mode list_rules not implemented; returning empty list")
+    """Invoke list_rules.sh and parse its JSON stdout.
+
+    A malformed payload is logged and degraded to an empty list rather than
+    bubbling a 500, so a transient parse glitch doesn't take down the page.
+    """
+    code, stdout, stderr = _run_script("list_rules.sh", [])
+    if code != 0:
+        logger.warning("list_rules.sh exited %d: %s", code, stderr.strip())
+        return []
+    try:
+        data = json.loads(stdout)
+    except json.JSONDecodeError as exc:
+        logger.warning("list_rules.sh produced invalid JSON: %s", exc)
+        return []
+    if isinstance(data, dict) and isinstance(data.get("rules"), list):
+        return data["rules"]
+    logger.warning("list_rules.sh JSON missing 'rules' array")
     return []
-
-
-def _not_implemented(action: str):
-    return (
-        jsonify(
-            {
-                "ok": False,
-                "message": f"{action} not yet implemented in non-mock mode (Phase 3)",
-                "stdout": "",
-                "stderr": "",
-                "code": -1,
-            }
-        ),
-        501,
-    )

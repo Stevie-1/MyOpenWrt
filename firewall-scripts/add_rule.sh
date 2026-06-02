@@ -1,5 +1,5 @@
 #!/bin/sh
-# add_rule.sh - Add a firewall rule on OpenWrt 24.10 (fw4 / nftables).
+# add_rule.sh - Add a firewall rule on OpenWrt 24.10 (fw4 / nftables) via uci.
 #
 # Usage: add_rule.sh <proto> <src> <dst> <port> <action>
 #   proto  : tcp | udp | icmp
@@ -8,13 +8,12 @@
 #   port   : 1-65535 (ignored for icmp)
 #   action : accept | reject | drop
 #
-# Exit code: 0 on success, non-zero on failure.
-# Output: stdout informational; stderr error.
+# Output (stdout): a "ruleId=<id>" line the backend parses, plus a human line.
+# Exit code: 0 success, 64 usage error, other = uci/fw4 failure.
 #
-# Phase 3 will replace the TODO body with actual `nft add rule` / `uci`
-# commands. Inputs are guaranteed pre-validated by the Flask backend
-# (_validators.py); this script must still treat them as untrusted and
-# never use them with eval or string-concatenated commands.
+# Inputs are pre-validated by the Flask backend (_validators.py) but this
+# script still treats them as untrusted: every value is passed as a uci
+# option value only, never eval'd or concatenated into a command.
 
 set -eu
 
@@ -29,6 +28,44 @@ DST="$3"
 PORT="$4"
 ACTION="$5"
 
-echo "TODO: Phase 3 will implement add_rule via fw4/nft."
-echo "received args: proto=$PROTO src=$SRC dst=$DST port=$PORT action=$ACTION"
+# Highest existing webfw-<n> sequence number, so the next id is monotonic.
+next_seq() {
+    max=0
+    for n in $(uci -q show firewall \
+        | sed -n "s/^firewall\.[^.]*\.name='webfw-\([0-9]\{1,\}\)'\$/\1/p"); do
+        if [ "$n" -gt "$max" ]; then
+            max="$n"
+        fi
+    done
+    echo $((max + 1))
+}
+
+SEQ="$(next_seq)"
+RULE_ID="webfw-$SEQ"
+
+# uci target option is upper-case (ACCEPT / REJECT / DROP).
+TARGET="$(echo "$ACTION" | tr '[:lower:]' '[:upper:]')"
+
+SEC="$(uci add firewall rule)"
+uci set firewall."$SEC".name="$RULE_ID"
+uci set firewall."$SEC".src='*'
+uci set firewall."$SEC".family='ipv4'
+uci set firewall."$SEC".proto="$PROTO"
+uci set firewall."$SEC".target="$TARGET"
+
+if [ "$SRC" != "any" ]; then
+    uci set firewall."$SEC".src_ip="$SRC"
+fi
+if [ "$DST" != "any" ]; then
+    uci set firewall."$SEC".dest_ip="$DST"
+fi
+if [ "$PROTO" = "tcp" ] || [ "$PROTO" = "udp" ]; then
+    uci set firewall."$SEC".dest_port="$PORT"
+fi
+
+uci commit firewall
+fw4 reload >/dev/null 2>&1
+
+echo "ruleId=$RULE_ID"
+echo "Rule $RULE_ID added"
 exit 0
