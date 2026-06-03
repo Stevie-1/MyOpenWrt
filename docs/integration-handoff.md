@@ -180,9 +180,11 @@ A 已经把这些放进仓库 `main`：
 
 可以用一键部署脚本（需先配好 SSH 免密 `ssh-copy-id root@192.168.122.100`）：
 
-```bash
-# 在 A 的 WSL2 仓库根目录，或任意 clone 了仓库的 Linux 机器上
-OPENWRT_HOST=192.168.122.100 ./scripts/deploy_to_openwrt.sh
+```powershell
+type $env:USERPROFILE\.ssh\id_rsa.pub | ssh root@192.168.122.100 "mkdir -p /etc/dropbear && cat >> /etc/dropbear/authorized_keys && chmod 700 /etc/dropbear && chmod 600 /etc/dropbear/authorized_keys"
+
+$env:OPENWRT_HOST="192.168.122.100"
+bash ./scripts/deploy_to_openwrt.sh
 ```
 
 该脚本会把脚本、二进制、后端推上去（前端 dist 如果存在也一并推）。**也可手动**走 Samba，见下。
@@ -191,19 +193,19 @@ OPENWRT_HOST=192.168.122.100 ./scripts/deploy_to_openwrt.sh
 
 ```sh
 # Samba 通道：A/B 把 release/traffic_monitor 放进 \\192.168.122.100\p0\
-cp /mnt/p0/traffic_monitor /usr/local/bin/traffic_monitor
-chmod +x /usr/local/bin/traffic_monitor
+cp /mnt/p0/traffic_monitor /usr/bin/traffic_monitor
+chmod +x /usr/bin/traffic_monitor
 
 # 校验完整性（跟 release/traffic_monitor.sha256 比对）
-sha256sum /usr/local/bin/traffic_monitor
+sha256sum /usr/bin/traffic_monitor
 
 # 不需要 root/抓包权限的自检（合成数据，验证 JSON schema）
-/usr/local/bin/traffic_monitor --version          # 0.1.0
-/usr/local/bin/traffic_monitor --self-test -o /tmp/traffic.json
+/usr/bin/traffic_monitor --version          # 0.1.0
+/usr/bin/traffic_monitor --self-test -o /tmp/traffic.json
 cat /tmp/traffic.json                              # 应是合法 JSON，items 3 条
 
 # 正式抓包：监听 br-lan，每秒写 /tmp/traffic.json
-/usr/local/bin/traffic_monitor -i br-lan -t 1000 -o /tmp/traffic.json &
+/usr/bin/traffic_monitor -i eth0 -t 1000 -o /tmp/traffic.json &
 ```
 
 > 如果报缺动态库：本程序已静态链接 libpcap，理论上只依赖 musl libc；若仍报错，确认是不是拿成了 host 版本（`file` 应显示 `interpreter /lib/ld-musl-x86_64.so.1`）。详见 [release/README.md](../release/README.md)。
@@ -211,9 +213,9 @@ cat /tmp/traffic.json                              # 应是合法 JSON，items 3
 ### 4.3 部署防火墙脚本并运行后端
 
 ```sh
-cp /mnt/p0/firewall-scripts/*.sh /usr/local/bin/
-chmod +x /usr/local/bin/*.sh
-dos2unix /usr/local/bin/*.sh 2>/dev/null || sed -i 's/\r$//' /usr/local/bin/*.sh
+cp /mnt/p0/firewall-scripts/*.sh /usr/bin/
+chmod +x /usr/bin/*.sh
+dos2unix /usr/bin/*.sh 2>/dev/null || sed -i 's/\r$//' /usr/bin/*.sh
 
 # 起后端（真实模式）：读真实 traffic.json + 调真实防火墙脚本
 cd /root/backend

@@ -35,7 +35,8 @@ echo "==> target: ${SSH_TARGET}:${OPENWRT_PORT}"
 echo "==> firewall scripts -> /usr/bin/"
 scp "${SCP_OPTS[@]}" "${REPO_ROOT}"/firewall-scripts/*.sh "${SSH_TARGET}":/usr/bin/
 ssh "${SSH_OPTS[@]}" "${SSH_TARGET}" \
-    "chmod +x /usr/bin/*.sh && sed -i 's/\r\$//' /usr/bin/*.sh"
+    #"chmod +x /usr/bin/*.sh && sed -i 's/\r\$//' /usr/bin/*.sh"
+    "chmod +x /usr/bin/*.sh && sed -i 's/\r//g' /usr/bin/*.sh"
 
 if [ -f "${REPO_ROOT}/traffic-monitor/bin/traffic_monitor.openwrt" ]; then
     echo "==> traffic monitor binary -> /usr/bin/traffic_monitor"
