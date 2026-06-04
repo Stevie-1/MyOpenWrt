@@ -8,15 +8,21 @@
 
     <el-card class="table-card">
       <el-table :data="tableData" border stripe max-height="350">
-        <el-table-column prop="proto" label="协议" width="80" />
-        <el-table-column prop="srcIp" label="源IP" width="160" />
-        <el-table-column prop="dstIp" label="目标IP" width="160" />
-        <el-table-column prop="srcPort" label="源端口" width="90" />
-        <el-table-column prop="dstPort" label="目标端口" width="90" />
-        <el-table-column prop="rxBytes" label="接收字节" width="110" sortable />
-        <el-table-column prop="txBytes" label="发送字节" width="110" sortable />
-        <el-table-column prop="avg2s" label="avg2s" width="90" sortable />
-        <el-table-column prop="avg10s" label="avg10s" width="90" sortable />
+        <el-table-column prop="proto" label="协议" width="70" />
+        <el-table-column prop="srcIp" label="源IP" width="150" />
+        <el-table-column prop="dstIp" label="目的IP" width="150" />
+        <el-table-column prop="srcPort" label="源端口" width="80" />
+        <el-table-column prop="dstPort" label="目的端口" width="80" />
+        <el-table-column prop="rxBytes" label="捕获字节" width="110" sortable>
+          <template #header>
+            <el-tooltip content="该流方向上 br-lan 捕获的累计字节数（双向分开统计）" placement="top">
+              <span>捕获字节 ◍</span>
+            </el-tooltip>
+          </template>
+        </el-table-column>
+        <el-table-column prop="peak" label="峰值(B/s)" width="100" sortable />
+        <el-table-column prop="avg2s" label="2s均值(B/s)" width="110" sortable />
+        <el-table-column prop="avg10s" label="10s均值(B/s)" width="110" sortable />
       </el-table>
     </el-card>
   </div>
@@ -43,7 +49,7 @@ const xData = ref([])
 const flowHistory = new Map()
 
 const chartOption = ref({
-  title: { text: '活跃流实时速率 (avg2s byte/s)' },
+  title: { text: '活跃流实时速率 (avg10s byte/s)' },
   tooltip: { trigger: 'axis' },
   legend: { type: 'scroll', bottom: 0 },
   xAxis: { type: 'category', data: [] },
@@ -99,7 +105,7 @@ function buildChartOption() {
   })
 
   chartOption.value = {
-    title: { text: '活跃流实时速率 (avg2s byte/s)' },
+    title: { text: '活跃流实时速率 (avg10s byte/s)' },
     tooltip: { trigger: 'axis' },
     legend: { type: 'scroll', bottom: 0 },
     xAxis: { type: 'category', data: xData.value },
@@ -120,7 +126,7 @@ async function pollTraffic() {
     for (const item of trafficData.value) {
       const key = flowKey(item)
       seen.add(key)
-      const val = item.avg2s ?? 0
+      const val = item.avg10s ?? 0
       let h = flowHistory.get(key)
       if (!h) {
         h = { data: [], idle: 0 }
