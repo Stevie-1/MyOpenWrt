@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import subprocess
 import threading
 import time
@@ -56,9 +57,24 @@ def _run_script(name: str, args: list[str]) -> tuple[int, str, str]:
     is missing/not executable or exceeds the timeout budget.
     """
     path = os.path.join(config.firewall_scripts_dir, name)
+    # On POSIX the script's shebang makes it directly executable. On Windows
+    # (e.g. running the PC-side backend natively against a real router via the
+    # router-bridge wrappers) a ".sh" cannot be exec'd directly, so route it
+    # through bash/sh from Git for Windows or WSL. Forward slashes keep bash
+    # happy with the Windows path.
+    if os.name == "nt":
+        bash = shutil.which("bash") or shutil.which("sh")
+        if bash is None:
+            raise ScriptError(
+                "no bash/sh found to run firewall scripts on Windows; "
+                "install Git for Windows or run the backend under WSL2"
+            )
+        cmd = [bash, path.replace("\\", "/"), *args]
+    else:
+        cmd = [path, *args]
     try:
         proc = subprocess.run(
-            [path, *args],
+            cmd,
             shell=False,
             check=False,
             capture_output=True,
